@@ -366,7 +366,6 @@ def get_f0_data(pitch_file, segments):
     praat_output_dict = dict(zip(timepoints, f0))
 
     segments = segments / 1000
-    print(segments)
     timepoints = [list(filter(lambda x: x >= seg[0] and x <= seg[1], timepoints)) for seg in segments]
     f0 = [list(map(lambda x: praat_output_dict[x], timepts)) for timepts in timepoints]
     functionals = np.min, np.max, np.mean, np.std, np.median
