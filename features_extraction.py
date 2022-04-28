@@ -179,7 +179,7 @@ def get_smiles(speaker, segments, mode="frequency"):
 
 def get_headnods(speaker, segments, mode="frequency"):
     """
-    Computes the presence, number or frequency of head nods within each segment. Only headnods
+    Computes the presence, number or frequency of head nods within each segment. Only head nods
         that are not part of a feedback are considered.
     ------
     Parameters:
@@ -240,7 +240,17 @@ def get_headnods(speaker, segments, mode="frequency"):
     return headnods
 
 
-def get_blinks(segments, threshold, file="//filer/AGORA/Comprendre/HMAD/PACO_CHEESE_blink_table.txt"):
+def get_blinks(blinks_file, segments, threshold):
+    """
+    Computes...
+    ------
+    Parameters:
+        blinks_file: txt file path containing blinks boundaries
+        segments: 2-dimensional ndarray. Contains time intervals
+        threshold: 
+    ------
+    Returns:
+    """
     with open(file, 'r') as f:
         lines = f.readlines()
     data = np.array([line.split('\t') for line in lines], dtype='<U8')
@@ -261,6 +271,8 @@ def get_blinks(segments, threshold, file="//filer/AGORA/Comprendre/HMAD/PACO_CHE
         blinks_ts.append([data[np.logical_and(data[data[:, 5] == speaker][:, 0].astype(int) >= seg[0],
                                               data[data[:, 5] == speaker][:, 1].astype(int) <= seg[1])][:, :2]
                           for seg in segments])
+        
+    return blinks_count, blinks_ts
 
 
 ########## LINGUISTIC FEATURES ##########
@@ -271,7 +283,7 @@ def get_articulation_rate(textgrid, segments):
         the total number of syllables divided by the total speaking time in seconds.
     ------
     Parameters:
-        textgrid: TextGrid file path containing syllables duration
+        textgrid: TextGrid file path containing syllables boundaries
         segments: 2-dimensional ndarray. Contains time intervals
     ------
     Returns:
@@ -287,6 +299,12 @@ def get_articulation_rate(textgrid, segments):
         articulation_rate[np.logical_and((segments[:, 0] <= xmin),
                                          (segments[:, 1] >= xmax)), 1] += 1
     articulation_rate = articulation_rate[:, 1] / articulation_rate[:, 0]
+    mean_ar = np.mean(articulation_rate)
+    std_ar = np.std(articulation_rate)
+    articulation_rate[np.logical_and(articulation_rate > mean_ar - std_ar,
+                                     articulation_rate < mean_ar + std_ar)] = 0
+    articulation_rate[articulation_rate < mean_ar - std_ar] = -1
+    articulation_rate[articulation_rate > mean_ar + std_ar] = 1
     articulation_rate = pd.DataFrame(data=articulation_rate, columns=['Articulation rate'])
     return articulation_rate
 
@@ -296,7 +314,7 @@ def get_nb_words(textgrid, segments):
     Computes the number of word produced within each segment
     ------
     Parameters:
-        textgrid: TextGrid file path containing the words and their duration
+        textgrid: TextGrid file path containing words and their boundaries
         segments: 2-dimensional ndarray. Contains time intervals
     ------
     Returns:
@@ -315,7 +333,7 @@ def get_pos_freq(textgrid, segments):
     Computes the frequency of each type of POS within each segment
     ------
     Parameters:
-        textgrid: TextGrid file path containing the POS and their durations
+        textgrid: TextGrid file path containing the POS and their boundaries
         segments: 2-dimensional ndarray. Contains time intervals.
     ------
     Returns:
@@ -455,8 +473,8 @@ def design_matrix_speak(pair, participant, segments, annotations_file, pos_file,
         participant: string. Participant ID
         segments: 2-dimensional ndarray. Contains time intervals
         annotations_file: eaf file path containing annotations of smiles and head nods
-        pos_file: TextGrid file path containing the POS and their duration
-        syl_file: TextGrid file path containing the syllables duration
+        pos_file: TextGrid file path containing the POS and their boundaries
+        syl_file: TextGrid file path containing the syllables boundaries
         praat_file: PitchTier file path
         audio_file: wav file path
     ------
@@ -466,6 +484,8 @@ def design_matrix_speak(pair, participant, segments, annotations_file, pos_file,
     speaker = pe.Speaker(annotations_file)
     smiles = get_smiles(speaker, segments, mode="frequency")
     nods = get_headnods(speaker, segments, mode="frequency")
+    blinks_file = "//filer/AGORA/Comprendre/HMAD/PACO_CHEESE_blink_table.txt"
+    blinks = get_blinks(blinks_file, segments, ...)
     pos = get_pos_freq(pos_file, segments)
     conj = pos[['Conjunctions freq']]
     modifiers = pos[['Adjectives freq', 'Adverbs freq']]
